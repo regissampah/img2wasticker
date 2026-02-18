@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>WA Sticker Maker</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        .upload-area { border: 2px dashed #25D366; padding: 20px; border-radius: 10px; }
+        button { background: #25D366; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Gambar ➡️ Stiker WA</h1>
+    <div class="upload-area">
+        <input type="file" id="imageInput" accept="image/*">
+        <br>
+        <button onclick="convertToSticker()">Convert ke WebP</button>
+    </div>
+    <div id="result" style="margin-top: 20px;"></div>
+
+    <script>
+        async function convertToSticker() {
+            const input = document.getElementById('imageInput');
+            if (!input.files[0]) return alert('Pilih gambar dulu!');
+
+            const formData = new FormData();
+            formData.append('image', input.files[0]);
+
+            const res = await fetch('/api/convert', { method: 'POST', body: formData });
+            const blob = await res.blob();
+            
+            const url = URL.createObjectURL(blob);
+            document.getElementById('result').innerHTML = `
+                <p>Berhasil! Klik kanan gambar di bawah dan simpan sebagai file .webp</p>
+                <img src="${url}" width="200">
+            `;
+        }
+    </script>
+</body>
+</html>
