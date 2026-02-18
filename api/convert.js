@@ -35,8 +35,14 @@ export default async function handler(req, res) {
       .toBuffer();
 
     // Set header agar browser tahu ini adalah gambar WebP
+
+    // Membuat ID acak singkat (5 karakter)
+    const randomId = Math.random().toString(36).substring(2, 7);
+    const fileName = `sticker-${randomId}.webp`;
+
+    // Set header agar browser tahu ini adalah gambar WebP dengan nama acak
     res.setHeader('Content-Type', 'image/webp');
-    res.setHeader('Content-Disposition', 'attachment; filename=sticker.webp');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     return res.send(outputBuffer);
 
   } catch (error) {
