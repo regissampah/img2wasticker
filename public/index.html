@@ -1,35 +1,175 @@
-async function convertToSticker() {
-    const input = document.getElementById('imageInput');
-    const resultDiv = document.getElementById('result');
-    
-    if (!input.files[0]) return alert('Pilih gambar dulu!');
-
-    resultDiv.innerHTML = "Sedang memproses...";
-
-    const formData = new FormData();
-    formData.append('image', input.files[0]);
-
-    try {
-        const res = await fetch('/api/convert', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!res.ok) throw new Error('Gagal konversi di server');
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembuat Stiker WA Instan</title>
+    <style>
+        :root {
+            --wa-green: #25D366;
+            --wa-dark: #075E54;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 { color: var(--wa-dark); font-size: 24px; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; }
         
-        resultDiv.innerHTML = `
-            <p>✅ Berhasil! Klik kanan dan simpan gambar atau tahan pada HP:</p>
-            <img src="${url}" style="width: 250px; border: 1px solid #ccc; padding: 10px;">
-            <br>
-            <a href="${url}" download="sticker.webp">
-                <button style="margin-top:10px;">Download File .webp</button>
-            </a>
-        `;
-    } catch (err) {
-        alert(err.message);
-        resultDiv.innerHTML = "Terjadi kesalahan.";
+        .upload-box {
+            border: 2px dashed var(--wa-green);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+            background: #f9f9f9;
+            transition: 0.3s;
+        }
+        .upload-box:hover { background: #f0fff4; }
+        
+        input[type="file"] { display: none; }
+        .custom-file-upload {
+            background: var(--wa-green);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        button#convertBtn {
+            background: var(--wa-dark);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            display: none; /* Muncul setelah file dipilih */
+        }
+
+        #resultArea {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+        .sticker-preview {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+            background-image: 
+                linear-gradient(45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(-45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ddd 75%), 
+                linear-gradient(-45deg, transparent 75%, #ddd 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 5px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .download-btn {
+            display: block;
+            margin-top: 15px;
+            color: var(--wa-dark);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .loading { color: #ff9800; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Sticker Maker</h1>
+    <p>Ubah foto jadi stiker WhatsApp (.webp)</p>
+
+    <div class="upload-box">
+        <label class="custom-file-upload">
+            <input type="file" id="imageInput" accept="image/*">
+            Pilih Foto 📸
+        </label>
+        <div id="fileName" style="font-size: 12px; margin-top: 5px;"></div>
+    </div>
+
+    <button id="convertBtn" onclick="convertToSticker()">Proses Jadi Stiker</button>
+    <div id="loading" class="loading">⏳ Sedang memproses...</div>
+
+    <div id="resultArea">
+        <img id="stickerImage" class="sticker-preview" src="" alt="Preview">
+        <p>✅ Selesai! Simpan gambar di atas.</p>
+        <a id="downloadLink" class="download-btn" href="#" download="sticker.webp">Download File .webp</a>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('imageInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const fileNameDisplay = document.getElementById('fileName');
+    const loading = document.getElementById('loading');
+    const resultArea = document.getElementById('resultArea');
+
+    // Tampilkan tombol proses setelah file dipilih
+    input.onchange = function() {
+        if (input.files.length > 0) {
+            fileNameDisplay.innerText = input.files[0].name;
+            convertBtn.style.display = 'block';
+            resultArea.style.display = 'none';
+        }
+    };
+
+    async function convertToSticker() {
+        const file = input.files[0];
+        if (!file) return;
+
+        // Reset tampilan
+        loading.style.display = 'block';
+        convertBtn.style.display = 'none';
+        resultArea.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await fetch('/api/convert', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Gagal memproses gambar');
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            // Tampilkan hasil
+            document.getElementById('stickerImage').src = url;
+            document.getElementById('downloadLink').href = url;
+            
+            resultArea.style.display = 'block';
+        } catch (error) {
+            alert("Error: " + error.message);
+        } finally {
+            loading.style.display = 'none';
+            convertBtn.style.display = 'block';
+        }
     }
-}
+</script>
+
+</body>
+</html>
